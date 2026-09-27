@@ -12,3 +12,7 @@ dist/
 # Python bytecode cache, e.g. from importing website/build_reference.py.
 __pycache__/
 *.pyc
+
+# scratch/ is Hans's own: notes and the daily standup, not part of the
+# repository. Nothing here reads it.
+scratch/
