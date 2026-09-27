@@ -145,41 +145,6 @@ Windows ARM64), with a downloadable build for two of them — macOS by
 hand, Windows from CI. Same rule as the section above: pick up only on
 explicit request.
 
-- [x] **CI (GitHub Actions)** — done 2026-08-14,
-  `.github/workflows/build.yml`. Four rows: `ubuntu-latest`,
-  `macos-latest`, `windows-latest` (MSYS2 UCRT64) and `windows-11-arm`
-  (MSYS2 CLANGARM64), each running `make` then `make test`, with
-  `fail-fast` off so one platform's failure doesn't hide the others'
-  results. The Windows rows also run `scripts/bundle_windows.sh` and
-  upload the result, so every build produces a downloadable standalone
-  Windows binary.
-
-  Dependencies are installed by running the project's own
-  `scripts/install_gtk.sh` rather than by listing packages in the
-  workflow, so CI exercises the same script users are told to run and
-  the two can't drift. That also finally exercises its `apt-get`
-  branch, which had never actually been run.
-
-  **The reasoning that put this first held up, twice.** The Linux
-  port's `-std=c11` hiding `open_memstream`/`usleep`/`clock_gettime`
-  behind glibc's feature-test macros, and its missing `-lm`, were
-  immediate deterministic failures on any Linux box that sat
-  undiscovered because the scoping session ran on macOS. The Windows
-  port then repeated it exactly: `strcasestr` and `clock_gettime64`
-  were instant deterministic failures on mingw-w64 that a careful
-  static read of the sources did not predict. A red job either day
-  would have said so in minutes.
-
-  **The limit, stated plainly so CI isn't over-trusted**: it cannot see
-  the GUI. The 2026-08-13 menu-bar bug compiled clean, emitted no
-  warnings, passed all 8 suites and launched with zero stderr — a
-  headless CI run would have been exactly as blind to it as the local
-  suites were. The 2026-08-14 console-output bug is the same shape and
-  worse: it would pass CI, because every way CI captures output is also
-  a way that makes the bug disappear. CI covers the build and the test
-  suites. Every GUI claim, and every claim about what a *terminal*
-  shows, still needs a human or a screenshot.
-
 - [ ] **A Linux package** — there's no Linux download, only build-from-
   source. Worth fixing eventually, but **not by uploading a binary to
   Releases**, which is the obvious move and the wrong one.
@@ -221,30 +186,9 @@ explicit request.
   AppImage should come down somewhat, but the ranking below Flatpak
   stands.
 
-- [x] **Automated releases** — done 2026-08-14,
-  `.github/workflows/release.yml`. Pushing a `v*` tag builds, tests and
-  publishes three archives: Windows x86-64, Windows ARM64 and macOS
-  ARM64. The Windows two are self-contained (`bundle_windows.sh`'s DLL
-  closure); macOS carries the binary and examples and states its
-  Homebrew requirement, matching the shape of the hand-built v0.1.0
-  archive so anyone who downloaded that finds this familiar.
-
-  Linux builds and tests in the release run but publishes no asset, for
-  the glibc reason in the entry above — it gates the release rather
-  than contributing to it, since cutting one from a tree that doesn't
-  build on Linux would be worse than shipping no Linux asset.
-
-  `workflow_dispatch` runs everything except the publish step, so the
-  whole pipeline can be exercised without cutting a release.
-
-  **A real bug this turned up**: the v0.1.0 archive's own README.txt
-  told users to `brew install gtk4` and stopped there. The binary links
-  SDL2 as well (joystick and audio), so following those instructions
-  exactly gets a dyld error rather than a window. The generated README
-  (`scripts/release_readme.sh`) names both.
-
-- [ ] **macOS notarization** — split out from the automation above,
-  which is now done. Apple requires a downloaded app to be signed and
+- [ ] **macOS notarization** — split out from the release automation,
+  which is done (see `docs/CHANGELOG.md`'s "CI and automated
+  releases"). Apple requires a downloaded app to be signed and
   notarized or Gatekeeper refuses to open it. That needs a paid
   Developer ID, the certificate and an app-specific password in repo
   secrets, and a signing step in the release job — none of which can be
