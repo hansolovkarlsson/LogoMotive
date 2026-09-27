@@ -95,10 +95,17 @@ elif command -v apt-get >/dev/null 2>&1; then
     # The library names are confirmed to exist on Ubuntu 24.04 LTS
     # (aarch64), 2026-08-13, and LogoMotive builds and tests clean
     # against what they provide (gtk4 4.14.5, sdl2 2.30.0, pkg-config
-    # 1.8.1). The apt-get call itself is still unexercised -- they were
-    # already installed on the box that verified them. Debian names
-    # assumed from Ubuntu's, as before. build-essential pulls in gcc,
-    # make and libc6-dev together.
+    # 1.8.1). CI's ubuntu-latest row runs this branch on every push.
+    # Debian names assumed from Ubuntu's, as before. build-essential
+    # pulls in gcc, make and libc6-dev together.
+    #
+    # `update` first: without it, install resolves against whatever
+    # package index the machine last fetched, and once the archive has
+    # moved on, those exact versions 404. That failed CI on 2026-09-27
+    # (libglib2.0-dev 2.80.0-6ubuntu3.8 among others), and a fresh
+    # install on a machine that hasn't updated in a while fails the same
+    # way.
+    sudo apt-get update
     sudo apt-get install -y libgtk-4-dev libsdl2-dev pkg-config build-essential
 elif command -v pacman >/dev/null 2>&1; then
     # Package names per Arch; not yet built there. base-devel is a
