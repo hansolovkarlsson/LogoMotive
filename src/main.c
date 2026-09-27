@@ -168,7 +168,9 @@ static void print_usage(const char *prog) {
         "                      scripting/automation rather than interactive use;\n"
         "                      every suspend point (WAIT, SETSPEED's throttle,\n"
         "                      ANIMATESPRITE, LAUNCH) resolves instantly, and\n"
-        "                      WAITKEY/INPUT read a line from stdin\n"
+        "                      WAITKEY/INPUT read a line from stdin; exits 1\n"
+        "                      if the script can't be read or parsed, or a\n"
+        "                      THROW reaches the top level with no CATCH\n"
         "  -h, --help          show this help and exit\n",
         prog);
 }

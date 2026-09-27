@@ -610,7 +610,9 @@ PRINT "after            ; prints: before / after (THROW skips "unreachable)
 ```
 
 A `THROW` with no matching `CATCH` prints an error and execution
-resumes with the next top-level command — not a crash.
+resumes with the next top-level command — not a crash. Inside a
+`LAUNCH`ed agent, the message is printed and that agent stops. Under
+`--headless`, a run in which this happened exits 1.
 
 ## Debugger
 

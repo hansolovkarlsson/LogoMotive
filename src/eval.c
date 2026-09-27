@@ -2198,6 +2198,7 @@ void eval_report_uncaught_throw(LogoApp *app) {
     append_output(app, app->throw_tag);
     append_output(app, "\n");
     app->throw_requested = FALSE;
+    app->uncaught_throw_count++;
 }
 // Removes a global variable by name -- swap-with-last, same pattern as
 // REMOVEPROP's own property removal. Only ever searches app->variables

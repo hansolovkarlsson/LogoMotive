@@ -22,8 +22,8 @@ Windows.
 
 `make`, `make run`, `make test`, `make clean`. The suite is split into
 per-stage targets — `test-lexer`, `test-parser`, `test-eval`, `test-vm`,
-`test-bytecode`, `test-agent`, `test-shadow-diff` — useful for narrowing a
-failure.
+`test-bytecode`, `test-agent`, `test-headless`, `test-shadow-diff` — useful
+for narrowing a failure.
 
 ## The records
 

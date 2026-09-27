@@ -957,7 +957,10 @@ PRINT "after-boom        -> after-boom (nothing from inner/outer prints)
 - A `THROW` with no matching `CATCH` anywhere prints `THROW: no CATCH
   found for "tag` and execution then resumes with whatever top-level
   command comes next — the same recovery an unrecognized command already
-  gets, not a crash or a silently bricked interpreter.
+  gets, not a crash or a silently bricked interpreter. Inside a
+  `LAUNCH`ed agent the same message is printed and that agent stops;
+  the other agents and the main script carry on. Under
+  `bin/logomotive --headless`, a run in which this happened exits 1.
 - `CATCH`/`THROW` are independent of `OUTPUT`/`STOP`: a `STOP` or
   `OUTPUT` inside a `CATCH`'s block still only unwinds to its own
   enclosing procedure call, same as if the `CATCH` weren't there; `CATCH`
@@ -1756,7 +1759,9 @@ unparseable expression just evaluates to `0`, same as always) — see
 - **`bin/logomotive --headless script.logo`** runs with no window at all,
   for scripting/automation rather than interactive use: `PRINT` output
   goes to stdout, the process exits when the script finishes (0 on
-  success), and every suspend point resolves instantly instead of
+  success; 1 if the file can't be read or fails to parse, or if a
+  `THROW` reached the top level with no `CATCH`, even though the rest
+  of the script still ran), and every suspend point resolves instantly instead of
   pausing for real time — `WAIT`/`SETSPEED`'s own throttle/`PAUSE`
   resume immediately, `ANIMATESPRITE` resolves every frame in one tight
   loop, and `LAUNCH`'s concurrent agents run to completion via the same

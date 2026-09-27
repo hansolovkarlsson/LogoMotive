@@ -519,6 +519,12 @@ typedef struct LogoApp {
     gboolean throw_requested;
     char throw_tag[64];
     int eval_depth;
+    // How many THROWs have reached the top level with no CATCH, counted
+    // by eval_report_uncaught_throw. The top level recovers and keeps
+    // running (throw_requested is cleared), so without this nothing
+    // remembers afterwards that the run failed -- --headless reads it to
+    // choose its exit code (see headless.c).
+    int uncaught_throw_count;
 
     // Backing storage for every list value in the program (see ListNode
     // above): a bump allocator, never reclaimed — same "generously sized,

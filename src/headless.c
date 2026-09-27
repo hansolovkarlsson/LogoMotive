@@ -25,6 +25,7 @@
 #include "ast.h"
 #include "bytecode.h"
 #include "compiler.h"
+#include "headless.h"
 #include "interpreter.h"
 #include "lexer.h"
 #include "parser.h"
@@ -49,7 +50,7 @@ static void print_sink(LogoApp *app, const char *text) {
 // to back them with here either, and every builtin that uses one
 // already tolerates NULL (see e.g. CLEARTEXT/LOADSPRITE's own comments
 // in vm.c).
-static LogoApp *make_headless_app(void) {
+static LogoApp *make_headless_app(void (*sink)(LogoApp *app, const char *text)) {
     LogoApp *app = calloc(1, sizeof(LogoApp));
     app->canvas_width = DEFAULT_CANVAS_WIDTH;
     app->canvas_height = DEFAULT_CANVAS_HEIGHT;
@@ -57,7 +58,7 @@ static LogoApp *make_headless_app(void) {
     app->turtle_count = 1;
     app->current_turtle = 0;
     app->bg_r = app->bg_g = app->bg_b = 1.0;
-    app->output_sink = print_sink;
+    app->output_sink = sink;
     return app;
 }
 
@@ -103,19 +104,20 @@ static void run_as_agent(LogoApp *app, AstPool *pool, BytecodeChunk *chunk, Vm *
     scheduler_run(app, pool, chunk, initial_agent);
 }
 
-int run_headless_script(const char *prog, const char *path) {
-    FILE *f = fopen(path, "rb");
-    if (f == NULL) {
-        fprintf(stderr, "%s: cannot open %s\n", prog, path);
+int run_headless_script_with(const char *prog, const char *path,
+                              void (*sink)(LogoApp *app, const char *text), FILE *err) {
+    // g_file_get_contents rather than fopen+ftell: fopen succeeds on a
+    // directory on macOS and Linux, and the old ftell-sized read then
+    // produced an empty script that "ran" and exited 0. This reports
+    // EISDIR (and any other read failure) instead, and still reads a
+    // pipe such as /dev/stdin to EOF.
+    char *source = NULL;
+    GError *read_error = NULL;
+    if (!g_file_get_contents(path, &source, NULL, &read_error)) {
+        fprintf(err, "%s: %s\n", prog, read_error->message); // names the path and the reason
+        g_error_free(read_error);
         return 1;
     }
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *source = malloc((size_t)size + 1);
-    size_t bytes_read = fread(source, 1, (size_t)size, f);
-    source[bytes_read] = '\0';
-    fclose(f);
     logo_normalize_newlines(source); // a CRLF script must behave as an LF one
 
     // Heap, not stack -- same rule this project applies everywhere else
@@ -123,9 +125,9 @@ int run_headless_script(const char *prog, const char *path) {
     LogoToken *tokens = malloc(sizeof(LogoToken) * MAX_HEADLESS_TOKENS);
     int n = logo_lex(source, tokens, MAX_HEADLESS_TOKENS);
     if (n < 0) {
-        fprintf(stderr, "%s: script needs more than %d tokens\n", prog, MAX_HEADLESS_TOKENS);
+        fprintf(err, "%s: script needs more than %d tokens\n", prog, MAX_HEADLESS_TOKENS);
         free(tokens);
-        free(source);
+        g_free(source);
         return 1;
     }
 
@@ -133,15 +135,15 @@ int run_headless_script(const char *prog, const char *path) {
     logo_parse(tokens, n, result);
     if (result->error_count > 0) {
         for (int i = 0; i < result->error_count; i++) {
-            fprintf(stderr, "%s:%d:%d: %s\n", path, result->errors[i].line, result->errors[i].col, result->errors[i].message);
+            fprintf(err, "%s:%d:%d: %s\n", path, result->errors[i].line, result->errors[i].col, result->errors[i].message);
         }
         parse_result_destroy(result);
         free(tokens);
-        free(source);
+        g_free(source);
         return 1;
     }
 
-    LogoApp *app = make_headless_app();
+    LogoApp *app = make_headless_app(sink);
     BytecodeChunk *chunk = calloc(1, sizeof(BytecodeChunk));
     int start_pc = compile_program(&result->pool, result->program, chunk);
     Vm *vm = calloc(1, sizeof(Vm));
@@ -179,7 +181,7 @@ int run_headless_script(const char *prog, const char *path) {
                 // ui.c's own handle_vm_result reports (see its comment
                 // there for why neither means anything outside
                 // agent.c's own scheduler).
-                fprintf(stderr, "%s: AWAIT/YIELD outside a concurrent-agent run (started by LAUNCH) are not supported\n", prog);
+                fprintf(err, "%s: AWAIT/YIELD outside a concurrent-agent run (started by LAUNCH) are not supported\n", prog);
                 free(vm);
                 exit_code = 1;
                 goto done;
@@ -187,10 +189,19 @@ int run_headless_script(const char *prog, const char *path) {
     }
 
 done:
+    // A THROW that reached the top level uncaught was reported and the
+    // run carried on (see eval_report_uncaught_throw), so the VM halted
+    // normally -- but the script still failed, and a caller checking $?
+    // has to be able to see that.
+    if (app->uncaught_throw_count > 0) exit_code = 1;
     free(chunk);
     free(app);
     parse_result_destroy(result);
     free(tokens);
-    free(source);
+    g_free(source);
     return exit_code;
+}
+
+int run_headless_script(const char *prog, const char *path) {
+    return run_headless_script_with(prog, path, print_sink, stderr);
 }

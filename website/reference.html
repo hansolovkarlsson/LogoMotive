@@ -1147,7 +1147,7 @@ SEND &quot;dog &quot;speak []    -&gt; dog Woof</pre>
   PRINT &quot;unreachable
 ]
 PRINT &quot;after            ; prints: before / after (THROW skips &quot;unreachable)</pre>
-        <p>A <code class="inline">THROW</code> with no matching <code class="inline">CATCH</code> prints an error and execution resumes with the next top-level command — not a crash.</p>
+        <p>A <code class="inline">THROW</code> with no matching <code class="inline">CATCH</code> prints an error and execution resumes with the next top-level command — not a crash. Inside a <code class="inline">LAUNCH</code>ed agent, the message is printed and that agent stops. Under <code class="inline">--headless</code>, a run in which this happened exits 1.</p>
       </div>
       <div class="ref-section" id="sec-debugger">
         <h2>Debugger</h2>

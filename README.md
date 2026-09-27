@@ -102,9 +102,11 @@ bin/logomotive --speed 0.2 examples/multiple_turtles.logo
 
 Pass `--headless` to run a script with no window at all, for
 scripting/automation rather than interactive use -- prints whatever
-the script `PRINT`s, exits 0 on success, and every suspend point
-(`WAIT`, `SETSPEED`'s throttle, `ANIMATESPRITE`, `LAUNCH`'s concurrent
-agents) resolves instantly rather than pausing for real time.
+the script `PRINT`s, exits 0 on success (1 if the script can't be
+read or parsed, or a `THROW` reaches the top level uncaught), and
+every suspend point (`WAIT`, `SETSPEED`'s throttle, `ANIMATESPRITE`,
+`LAUNCH`'s concurrent agents) resolves instantly rather than pausing
+for real time.
 `WAITKEY`/`INPUT` read a real line from stdin instead of hanging:
 
 ```sh

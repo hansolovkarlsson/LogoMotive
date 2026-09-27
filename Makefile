@@ -173,6 +173,16 @@ TEST_AGENT_SRC = tests/test_agent.c src/agent.c src/compiler.c src/bytecode.c sr
 TEST_AGENT_CFLAGS = -Wall -Wextra -g -O1 $(CONSERVE_STACK) -std=gnu11 $(shell $(PKG_CONFIG) --cflags $(GTK_LIBS))
 TEST_AGENT_LDFLAGS = $(shell $(PKG_CONFIG) --libs $(GTK_LIBS)) -lm $(STACK_FLAGS)
 
+# test_headless.c -- bin/logomotive --headless's own runner
+# (src/headless.c): exit codes and diagnostics, driven through
+# run_headless_script_with so the script's output and the runner's
+# messages can both be checked. Same stack as TEST_AGENT_TARGET, since
+# headless.c hands LAUNCH off to agent.c's scheduler.
+TEST_HEADLESS_TARGET = build/test_headless
+TEST_HEADLESS_SRC = tests/test_headless.c src/headless.c src/agent.c src/compiler.c src/bytecode.c src/vm.c src/eval.c src/parser.c src/ast.c src/lexer.c src/interpreter.c
+TEST_HEADLESS_CFLAGS = $(TEST_AGENT_CFLAGS)
+TEST_HEADLESS_LDFLAGS = $(TEST_AGENT_LDFLAGS)
+
 # tools/logi_cli.c -- a standalone command-line driver for Stage 1's new
 # evaluator (see docs/BYTECODE_VM_DESIGN.md), letting a script be run
 # against it directly (or an interactive REPL started with no
@@ -189,7 +199,7 @@ LOGI_SRC = tools/logi_cli.c src/eval.c src/parser.c src/ast.c src/lexer.c src/in
 LOGI_CFLAGS = -Wall -Wextra -g -O1 $(CONSERVE_STACK) -std=gnu11 $(shell $(PKG_CONFIG) --cflags $(GTK_LIBS))
 LOGI_LDFLAGS = $(shell $(PKG_CONFIG) --libs $(GTK_LIBS)) -lm $(STACK_FLAGS)
 
-.PHONY: all clean run test test-lexer test-parser test-eval test-shadow-diff test-vm test-bytecode test-agent logi vmrun
+.PHONY: all clean run test test-lexer test-parser test-eval test-shadow-diff test-vm test-bytecode test-agent test-headless logi vmrun
 
 all: $(TARGET)
 
@@ -211,7 +221,7 @@ run: $(TARGET)
 # lexer.c's, parser.c's, eval.c's, and the shadow-diff corpus's own
 # tests, so `make test` remains the one command that verifies
 # everything still works.
-test: $(TEST_TARGET) $(TEST_LEXER_TARGET) $(TEST_PARSER_TARGET) $(TEST_EVAL_TARGET) $(TEST_SHADOW_DIFF_TARGET) $(TEST_VM_TARGET) $(TEST_BYTECODE_TARGET) $(TEST_AGENT_TARGET)
+test: $(TEST_TARGET) $(TEST_LEXER_TARGET) $(TEST_PARSER_TARGET) $(TEST_EVAL_TARGET) $(TEST_SHADOW_DIFF_TARGET) $(TEST_VM_TARGET) $(TEST_BYTECODE_TARGET) $(TEST_AGENT_TARGET) $(TEST_HEADLESS_TARGET)
 	./$(TEST_TARGET)
 	./$(TEST_LEXER_TARGET)
 	./$(TEST_PARSER_TARGET)
@@ -220,6 +230,7 @@ test: $(TEST_TARGET) $(TEST_LEXER_TARGET) $(TEST_PARSER_TARGET) $(TEST_EVAL_TARG
 	./$(TEST_VM_TARGET)
 	./$(TEST_BYTECODE_TARGET)
 	./$(TEST_AGENT_TARGET)
+	./$(TEST_HEADLESS_TARGET)
 
 $(TEST_TARGET): $(TEST_SRC) $(HEADERS)
 	@mkdir -p build
@@ -273,6 +284,13 @@ test-agent: $(TEST_AGENT_TARGET)
 $(TEST_AGENT_TARGET): $(TEST_AGENT_SRC) $(HEADERS)
 	@mkdir -p build
 	$(CC) $(TEST_AGENT_CFLAGS) $(TEST_AGENT_SRC) -o $(TEST_AGENT_TARGET) $(TEST_AGENT_LDFLAGS)
+
+test-headless: $(TEST_HEADLESS_TARGET)
+	./$(TEST_HEADLESS_TARGET)
+
+$(TEST_HEADLESS_TARGET): $(TEST_HEADLESS_SRC) $(HEADERS)
+	@mkdir -p build
+	$(CC) $(TEST_HEADLESS_CFLAGS) $(TEST_HEADLESS_SRC) -o $(TEST_HEADLESS_TARGET) $(TEST_HEADLESS_LDFLAGS)
 
 logi: $(LOGI_TARGET)
 

@@ -2604,3 +2604,50 @@ Not covered by `make test`, which has no GTK in it. The 2026-08-16
 commits did not record a hand check of the window. The website's
 macOS, Linux and Windows pages describe it; `README.md` does not yet.
 Suite at the time: CI green on `5e8fc83`, all four rows.
+
+## `--headless` exit status, and THROWs lost inside agents (2026-09-27)
+
+`bin/logomotive --headless` now exits 1 when a `THROW` reaches the top
+level with no `CATCH`, and when the script path can't be read. Both
+used to exit 0.
+
+**The uncaught `THROW` case was a convention, not an oversight.**
+`src/headless.h` said so outright: exit 0 "even if the script itself
+printed runtime errors", matching the other headless entry points
+(`bin/logi`, `bin/vmrun`). But `README.md` promised "exits 0 on
+success", and a script that throws past every `CATCH` has not
+succeeded, so a caller checking `$?` couldn't tell. The top level still
+recovers and runs the rest of the script exactly as the window does;
+only the exit code changes. `LogoApp.uncaught_throw_count`, bumped by
+`eval_report_uncaught_throw`, is what remembers it afterwards, since
+the recovery clears `throw_requested`. The dev tools `bin/logi` and
+`bin/vmrun` keep the old convention. Diagnostics the language treats as
+recoverable, such as "Recursion too deep, call ignored", don't affect
+the exit code.
+
+**The unreadable-path case was a real bug.** `fopen` succeeds on a
+directory on macOS and Linux, and the `ftell`-sized read then produced
+an empty script that ran, printed nothing and exited 0, against the
+header's own promise of nonzero "if the file can't be read". The runner
+now uses `g_file_get_contents`, which reports the directory, and still
+reads a pipe such as `/dev/stdin` to EOF.
+
+**Found while writing the test: a `THROW` escaping a `LAUNCH`ed agent
+vanished silently**, in the window as well as headless. No message, and
+the rest of the program carried on as if nothing had happened. The
+main script's own statements carry `OP_CHECK_UNCAUGHT_THROW`, but a
+launched procedure has no top level of its own, so when its agent
+halted with `throw_requested` still set, `agent.c`'s scheduler simply
+marked it finished. It now reports the throw the same way the top level
+does, and that agent stops while the others carry on.
+`examples/catch_throw.logo`, which demonstrates an uncaught `THROW` on
+purpose, now exits 1 under `--headless`. No other example changed.
+
+`tests/test_headless.c` (`make test-headless`, part of `make test`) is
+the first test of the headless runner itself: 7 cases covering a clean
+run, an uncaught `THROW` at the top level and inside an agent, a caught
+one, a directory, a missing file and a parse error. It checks exit
+codes, the script's output and the runner's diagnostics.
+`run_headless_script_with` exists so it can capture the last two.
+Verified with 9 of 9 suites passing under `make test`, and with
+`test_headless`, `test_agent` and `test_vm` clean under AddressSanitizer.

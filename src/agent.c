@@ -14,6 +14,7 @@
 // the agent's own storage.
 
 #include "agent.h"
+#include "eval.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -112,6 +113,17 @@ void scheduler_run(LogoApp *app, AstPool *pool, BytecodeChunk *chunk, Agent *ini
 
             switch (result) {
                 case VM_RUN_HALTED:
+                    // A THROW nothing inside the agent CATCHes ends its
+                    // run with the flag still set. The initial agent's
+                    // own top level already reported it (its statements
+                    // carry OP_CHECK_UNCAUGHT_THROW), but a LAUNCHed
+                    // procedure has no top level of its own, so without
+                    // this the throw vanished silently and --headless
+                    // exited 0. Reported the same way the top level does.
+                    if (app->throw_requested) {
+                        eval_report_uncaught_throw(app);
+                        a->throw_requested = FALSE;
+                    }
                     a->state = AGENT_FINISHED;
                     break;
                 case VM_RUN_SUSPENDED_YIELD:
